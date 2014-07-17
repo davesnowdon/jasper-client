@@ -25,6 +25,8 @@ STT_KEY = os.environ.get("GOOGLE_STT_KEY", None)
 
 GOOGLE_SPEECH_URL = 'https://www.google.com/speech-api/v2/recognize?lang={lang}&key={key}'.format(key=STT_KEY, lang=LANG_CODE);
 
+PLAY_CMD = os.environ.get('JASPER_PLAY', 'aplay -D hw:1,0 {}')
+
 class Mic:
 
     speechRec = None
@@ -285,7 +287,7 @@ class Mic:
         if THRESHOLD == None:
             THRESHOLD = self.fetchThreshold()
 
-        os.system("aplay -D hw:1,0 beep_hi.wav")
+        os.system(PLAY_CMD.format('beep_hi.wav'))
 
         # prepare recording stream
         audio = pyaudio.PyAudio()
@@ -315,7 +317,7 @@ class Mic:
             if average < THRESHOLD * 0.8:
                 break
 
-        os.system("aplay -D hw:1,0 beep_lo.wav")
+        os.system(PLAY_CMD.format('beep_lo.wav'))
 
         # save the audio data
         stream.stop_stream()
@@ -344,4 +346,4 @@ class Mic:
         phrase = alteration.clean(phrase)
 
         os.system("espeak " + json.dumps(phrase) + OPTIONS)
-        os.system("aplay -D hw:1,0 say.wav")
+        os.system(PLAY_CMD.format('say.wav'))

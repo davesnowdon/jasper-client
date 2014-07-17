@@ -8,11 +8,12 @@ from wifi import *
 
 import vocabcompiler
 
+PLAY_CMD = os.environ.get('JASPER_PLAY', 'aplay -D hw:1,0 {}')
+
 def say(phrase, OPTIONS = " -vdefault+m3 -p 40 -s 160 --stdout > say.wav"):
 
     os.system("espeak " + json.dumps(phrase) + OPTIONS)
-    os.system("aplay -D hw:1,0 say.wav")
-
+    os.system(PLAY_CMD.format('say.wav'))
 
 
 # check if there is network connection
