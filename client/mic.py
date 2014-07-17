@@ -8,7 +8,8 @@ from wave import open as open_audio
 import audioop
 import pyaudio
 import alteration
-
+import urllib2
+import urllib
 
 # quirky bug where first import doesn't work
 try:
@@ -16,6 +17,13 @@ try:
 except:
     import pocketsphinx as ps
 
+LANG_CODE = 'en-US'  # Language to use
+
+FLAC_CONV = 'flac -f'
+
+STT_KEY = os.environ.get("GOOGLE_STT_KEY", None)
+
+GOOGLE_SPEECH_URL = 'https://www.google.com/speech-api/v2/recognize?lang={lang}&key={key}'.format(key=STT_KEY, lang=LANG_CODE);
 
 class Mic:
 
@@ -69,6 +77,46 @@ class Mic:
         print "==================="
 
         return result[0]
+
+    def google_transcribe(self, audio_file_path):
+        """ Sends audio file (audio_file_path) to Google's text to speech
+            service and returns service's response. We need a FLAC
+            converter if audio is not FLAC (check FLAC_CONV). """
+
+        print "Sending ", audio_file_path
+        #Convert to flac first
+        filename = audio_file_path
+        del_flac = False
+        if 'flac' not in filename:
+            del_flac = True
+            print "Converting to flac"
+            print FLAC_CONV + filename
+            os.system(FLAC_CONV + ' ' + filename)
+            filename = filename.split('.')[0] + '.flac'
+
+        f = open(filename, 'rb')
+        flac_cont = f.read()
+        f.close()
+
+        # Headers. A common Chromium (Linux) User-Agent
+        hrs = {"User-Agent": "Mozilla/5.0 (X11; Linux i686) AppleWebKit/535.7 (KHTML, like Gecko) Chrome/16.0.912.63 Safari/535.7",
+               'Content-type': 'audio/x-flac; rate=16000'}
+
+        req = urllib2.Request(GOOGLE_SPEECH_URL, data=flac_cont, headers=hrs)
+        print "Sending request to Google TTS"
+        #print "response", response
+        try:
+            p = urllib2.urlopen(req)
+            response = p.read()
+            res = eval(response)['hypotheses']
+        except:
+            print "Couldn't parse service response"
+            res = None
+
+        if del_flac:
+            os.remove(filename)  # Remove temp file
+
+        return res
 
     def getScore(self, data):
         rms = audioop.rms(data, 2)
@@ -216,7 +264,7 @@ class Mic:
 
         return (False, transcribed)
 
-    def activeListen(self, THRESHOLD=None, LISTEN=True, MUSIC=False):
+    def activeListen(self, THRESHOLD=None, LISTEN=True, MUSIC=False, google_stt=False):
         """
             Records until a second of silence or times out after 12 seconds
         """
@@ -286,8 +334,11 @@ class Mic:
         if MUSIC:
             return self.transcribe(AUDIO_FILE, MUSIC=True)
 
-        return self.transcribe(AUDIO_FILE)
-        
+        if google_stt:
+            return self.google_transcribe(AUDIO_FILE)
+        else:
+            return self.transcribe(AUDIO_FILE)
+
     def say(self, phrase, OPTIONS=" -vdefault+m3 -p 40 -s 160 --stdout > say.wav"):
         # alter phrase before speaking
         phrase = alteration.clean(phrase)
